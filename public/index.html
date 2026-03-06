@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GenreGuru</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0d0d0d;
+      color: #f0f0f0;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: #1db954;
+    }
+
+    header p {
+      margin-top: 8px;
+      color: #aaa;
+      font-size: 1rem;
+    }
+
+    .login-section {
+      text-align: center;
+      margin-top: 60px;
+    }
+
+    .login-btn {
+      padding: 16px 36px;
+      border-radius: 50px;
+      border: none;
+      background: #1db954;
+      color: #000;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .login-btn:hover { background: #17a349; }
+
+    .search-box {
+      display: flex;
+      gap: 10px;
+      max-width: 660px;
+      margin: 0 auto 40px;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 2px solid #333;
+      background: #1a1a1a;
+      color: #f0f0f0;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-box input:focus { border-color: #1db954; }
+
+    .search-box button {
+      padding: 14px 24px;
+      border-radius: 12px;
+      border: none;
+      background: #1db954;
+      color: #000;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .search-box button:hover { background: #17a349; }
+
+    #error {
+      text-align: center;
+      color: #ff5c5c;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    #loading {
+      text-align: center;
+      color: #aaa;
+      display: none;
+      margin-bottom: 20px;
+    }
+
+    #playlist-header {
+      display: none;
+      align-items: center;
+      gap: 20px;
+      max-width: 760px;
+      margin: 0 auto 30px;
+    }
+
+    #playlist-header img {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    #playlist-header h2 { font-size: 1.4rem; font-weight: 700; }
+    #playlist-header p { color: #aaa; font-size: 0.9rem; margin-top: 4px; }
+
+    #results {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .song-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .song-card img {
+      width: 52px;
+      height: 52px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .song-info { flex: 1; min-width: 0; }
+
+    .song-info .title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-info .artist {
+      color: #aaa;
+      font-size: 0.82rem;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .genres {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .genre-tag {
+      background: #1db95422;
+      color: #1db954;
+      border: 1px solid #1db95444;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .genre-tag.unknown {
+      background: #ffffff11;
+      color: #666;
+      border-color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>GenreGuru</h1>
+    <p>Discover the genres hiding in your Spotify playlists</p>
+  </header>
+
+  <!-- Shown when not logged in -->
+  <div class="login-section" id="login-section">
+    <p style="color:#aaa; margin-bottom: 24px;">Connect your Spotify account to get started</p>
+    <button class="login-btn" onclick="login()">Login with Spotify</button>
+  </div>
+
+  <!-- Shown when logged in -->
+  <div id="app-section" style="display:none;">
+    <div class="search-box">
+      <input type="text" id="url-input" placeholder="https://open.spotify.com/playlist/..." />
+      <button onclick="loadPlaylist()">Analyze</button>
+    </div>
+
+    <div id="error"></div>
+    <div id="loading">Loading playlist...</div>
+
+    <div id="playlist-header">
+      <img id="playlist-img" src="" alt="Playlist cover" />
+      <div>
+        <h2 id="playlist-name"></h2>
+        <p id="playlist-count"></p>
+      </div>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const CLIENT_ID = '5e6816bb476b4185849ac0017e842aa7';
+    const REDIRECT_URI = 'http://127.0.0.1:3000/callback';
+    const SCOPES = 'playlist-read-private playlist-read-collaborative';
+
+    // ---- PKCE Helpers ----
+    // These generate the secure login codes that Spotify requires
+
+    function generateCodeVerifier() {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      return btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    async function generateCodeChallenge(verifier) {
+      const data = new TextEncoder().encode(verifier);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    // ---- Login ----
+    // Redirects user to Spotify's login page
+
+    async function login() {
+      const verifier = generateCodeVerifier();
+      const challenge = await generateCodeChallenge(verifier);
+      sessionStorage.setItem('code_verifier', verifier);
+
+      const params = new URLSearchParams({
+        client_id: CLIENT_ID,
+        response_type: 'code',
+        redirect_uri: REDIRECT_URI,
+        scope: SCOPES,
+        code_challenge_method: 'S256',
+        code_challenge: challenge
+      });
+
+      window.location = `https://accounts.spotify.com/authorize?${params}`;
+    }
+
+    // ---- Handle Callback ----
+    // After Spotify login, they send us back here with a "code" in the URL
+    // We exchange that code for an access token
+
+    async function handleCallback() {
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (!code) return false;
+
+      const verifier = sessionStorage.getItem('code_verifier');
+
+      const res = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: CLIENT_ID,
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: REDIRECT_URI,
+          code_verifier: verifier
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.access_token) {
+        // Save the token and clean up the URL
+        sessionStorage.setItem('access_token', data.access_token);
+        window.history.replaceState({}, '', '/');
+        return true;
+      }
+
+      return false;
+    }
+
+    // ---- Startup ----
+    // Runs when the page loads — figures out what state we're in
+
+    async function init() {
+      // Check if we're coming back from Spotify login
+      if (window.location.search.includes('code=')) {
+        await handleCallback();
+      }
+
+      const token = sessionStorage.getItem('access_token');
+
+      if (token) {
+        // Verify the token is actually valid by calling /v1/me
+        const testRes = await fetch('https://api.spotify.com/v1/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const testData = await testRes.json();
+
+        if (testRes.ok) {
+          // Token works — show the app
+          document.getElementById('login-section').style.display = 'none';
+          document.getElementById('app-section').style.display = 'block';
+        } else {
+          // Token is bad — clear it and show login
+          console.error('Token invalid:', testData);
+          sessionStorage.removeItem('access_token');
+          document.getElementById('login-section').style.display = 'block';
+          document.getElementById('app-section').style.display = 'none';
+        }
+      } else {
+        // Not logged in — show the login button
+        document.getElementById('login-section').style.display = 'block';
+        document.getElementById('app-section').style.display = 'none';
+      }
+    }
+
+    // ---- Load Playlist ----
+    // Called when the user clicks "Analyze"
+
+    async function loadPlaylist() {
+      const url = document.getElementById('url-input').value.trim();
+      const errorEl = document.getElementById('error');
+      const loadingEl = document.getElementById('loading');
+      const resultsEl = document.getElementById('results');
+      const headerEl = document.getElementById('playlist-header');
+      const token = sessionStorage.getItem('access_token');
+
+      // Reset
+      errorEl.style.display = 'none';
+      resultsEl.innerHTML = '';
+      headerEl.style.display = 'none';
+
+      if (!url) {
+        errorEl.textContent = 'Please paste a Spotify playlist link.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      // Pull the playlist ID out of the URL
+      const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
+      if (!match) {
+        errorEl.textContent = 'Invalid playlist URL. Make sure it contains /playlist/ in the link.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const playlistId = match[1];
+      loadingEl.style.display = 'block';
+
+      try {
+        // Fetch playlist info and tracks from Spotify at the same time
+        const [infoRes, tracksRes] = await Promise.all([
+          fetch(`https://api.spotify.com/v1/playlists/${playlistId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items?limit=50`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+
+        const infoData = await infoRes.json();
+        const tracksData = await tracksRes.json();
+
+        loadingEl.style.display = 'none';
+
+        if (!tracksData.items) {
+          errorEl.textContent = `Error ${tracksData.error?.status}: ${tracksData.error?.message || 'Could not load playlist.'}`;
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Collect all unique artist IDs from every song
+        const artistIds = [...new Set(
+          tracksData.items.flatMap(item => item.item?.artists?.map(a => a.id) || [])
+        )].filter(Boolean);
+
+        // Look up each artist's genres individually
+        const artistGenres = {};
+        await Promise.all(artistIds.map(async id => {
+          const res = await fetch(`https://api.spotify.com/v1/artists/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          console.log('artist response:', id, res.status, JSON.stringify(data));
+          if (data.genres) artistGenres[id] = data.genres;
+        }));
+
+        // Build the final song list
+        const songs = tracksData.items
+          .filter(item => item.item)
+          .map(item => ({
+            name: item.item.name,
+            artist: item.item.artists.map(a => a.name).join(', '),
+            image: item.item.album.images?.[2]?.url || item.item.album.images?.[0]?.url || null,
+            genres: [...new Set(item.item.artists.flatMap(a => artistGenres[a.id] || []))]
+          }));
+
+        // Show playlist header
+        document.getElementById('playlist-name').textContent = infoData.name;
+        document.getElementById('playlist-count').textContent = `${songs.length} songs`;
+        const imgEl = document.getElementById('playlist-img');
+        if (infoData.images?.[0]?.url) {
+          imgEl.src = infoData.images[0].url;
+          imgEl.style.display = 'block';
+        } else {
+          imgEl.style.display = 'none';
+        }
+        headerEl.style.display = 'flex';
+
+        // Render each song as a card
+        songs.forEach(song => {
+          const card = document.createElement('div');
+          card.className = 'song-card';
+
+          const img = song.image
+            ? `<img src="${song.image}" alt="album art" />`
+            : `<div style="width:52px;height:52px;background:#333;border-radius:6px;flex-shrink:0;"></div>`;
+
+          const genreTags = song.genres.length > 0
+            ? song.genres.map(g => `<span class="genre-tag">${g}</span>`).join('')
+            : `<span class="genre-tag unknown">unknown</span>`;
+
+          card.innerHTML = `
+            ${img}
+            <div class="song-info">
+              <div class="title">${song.name}</div>
+              <div class="artist">${song.artist}</div>
+            </div>
+            <div class="genres">${genreTags}</div>
+          `;
+
+          resultsEl.appendChild(card);
+        });
+
+      } catch (err) {
+        loadingEl.style.display = 'none';
+errorEl.textContent = 'Something went wrong. Please try again.';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    // Allow pressing Enter to submit
+    document.getElementById('url-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') loadPlaylist();
+    });
+
+    // Kick everything off
+    init();
+  </script>
+
+</body>
+</html>
